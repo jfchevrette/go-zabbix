@@ -2,10 +2,11 @@ package zabbix
 
 // ClientBuilder is Zabbix API client builder
 type ClientBuilder struct {
-	cache       SessionAbstractCache
-	hasCache    bool
-	url         string
-	credentials map[string]string
+	cache         SessionAbstractCache
+	hasCache      bool
+	url           string
+	credentials   map[string]string
+	skipTLSVerify bool
 }
 
 // WithCache sets cache for Zabbix sessions
@@ -24,6 +25,13 @@ func (builder *ClientBuilder) WithCredentials(username string, password string) 
 	return builder
 }
 
+// SkipTLSVerify sets TLS verification for Zabbix API URL
+func (builder *ClientBuilder) SkipTLSVerify() *ClientBuilder {
+	builder.skipTLSVerify = true
+
+	return builder
+}
+
 // Connect creates Zabbix API client and connects to the API server
 // or provides a cached server if any cache was specified
 func (builder *ClientBuilder) Connect() (session *Session, err error) {
@@ -35,7 +43,7 @@ func (builder *ClientBuilder) Connect() (session *Session, err error) {
 	}
 
 	// Otherwise - login to a Zabbix server
-	session, err = NewSession(builder.url, builder.credentials["username"], builder.credentials["password"])
+	session, err = NewSession(builder.url, builder.credentials["username"], builder.credentials["password"], builder.skipTLSVerify)
 
 	if err != nil {
 		return nil, err
@@ -52,7 +60,8 @@ func (builder *ClientBuilder) Connect() (session *Session, err error) {
 // CreateClient creates a Zabbix API client builder
 func CreateClient(apiEndpoint string) *ClientBuilder {
 	return &ClientBuilder{
-		url:         apiEndpoint,
-		credentials: make(map[string]string),
+		url:           apiEndpoint,
+		credentials:   make(map[string]string),
+		skipTLSVerify: false,
 	}
 }

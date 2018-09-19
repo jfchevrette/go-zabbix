@@ -2,6 +2,7 @@ package zabbix
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,8 @@ var ErrNotFound = errors.New("No results were found matching the given search pa
 type Session struct {
 	// URL of the Zabbix JSON-RPC API (ending in `/api_jsonrpc.php`).
 	URL string `json:"url"`
+
+	SkipTLSVerify bool `json:"skipTlsVerify"`
 
 	// Token is the cached authentication token returned by `user.login` and
 	// used to authenticate all API calls in this Session.
@@ -34,9 +37,9 @@ type Session struct {
 //
 // The authentication token returned by the Zabbix API server is cached to
 // authenticate all subsequent requests in this Session.
-func NewSession(url string, username string, password string) (session *Session, err error) {
+func NewSession(url string, username string, password string, skipTLSVerify bool) (session *Session, err error) {
 	// create session
-	session = &Session{URL: url}
+	session = &Session{URL: url, SkipTLSVerify: skipTLSVerify}
 
 	// get Zabbix API version
 	res, err := session.Do(NewRequest("apiinfo.version", nil))
@@ -108,8 +111,13 @@ func (c *Session) Do(req *Request) (resp *Response, err error) {
 	r.ContentLength = int64(len(b))
 	r.Header.Add("Content-Type", "application/json-rpc")
 
+	// create HTTP transport
+	t := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: c.SkipTLSVerify},
+	}
+
 	// send request
-	client := http.Client{}
+	client := http.Client{Transport: t}
 	res, err := client.Do(r)
 	if err != nil {
 		return
